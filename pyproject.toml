@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "hashbot"
+version = "0.1.0"
+description = ""
+authors = ["Shevchenko Sergey <rootsergio@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.8.0"
+aiogram = "^2.11.2"
+requests = "^2.25.1"
+dynaconf = "^3.1.2"
+SQLAlchemy = "^1.3.22"
+
+[tool.poetry.dev-dependencies]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
