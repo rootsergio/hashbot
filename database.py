@@ -23,29 +23,7 @@ class User(Base):
     wallet_id = Column(Integer, ForeignKey('wallet.id'))
 
     def __repr__(self):
-        return f"<User(id={self.id}, fullname='%s', nickname={self.username})>"
-
-
-class Task(Base):
-    __tablename__ = 'tasks'
-
-    id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey('users.id'))
-    completed = Column(Boolean)  # Признак того, что выполнение задачи завершено
-    hash_list_id = Column(Integer)
-    hash_type_id = Column(Integer)
-    super_task_id = Column(Integer)
-
-
-class Hashe(Base):
-    __tablename__ = 'hashes'
-
-    id = Column(Integer, primary_key=True)
-    task_id = Column(Integer, ForeignKey('tasks.id'))
-    hash = Column(String(32))   #md5 hash изначального хэша
-    salt = Column(String(32))   #md5 hash изначальной соли
-    plaintext = Column(String(32))  #md5 hash пароля
-    is_send = Column(Boolean)   # Признак того, что пароль отправлен
+        return f"<User(id={self.id}, fullname='{self.first_name} {self.last_name}', nickname={self.username})>"
 
 
 class Wallet(Base):
@@ -57,7 +35,27 @@ class Wallet(Base):
     rub = Column(Float, default=0)
 
 
-class Database():
+class Task(Base):
+    __tablename__ = 'tasks'
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id'))
+    hash_list_id = Column(Integer)
+    task_wrapper_id = Column(Integer)
+    completed = Column(Boolean)  # Признак того, что выполнение задачи завершено
+
+
+class Hashe(Base):
+    __tablename__ = 'hashes'
+
+    id = Column(Integer, primary_key=True)
+    task_id = Column(Integer, ForeignKey('tasks.id'))
+    hash_id = Column(Integer)
+    is_cracked = Column(Boolean)
+    is_send = Column(Boolean)   # Признак того, что пароль отправлен
+
+
+class Database:
     def __init__(self, host=settings.DB_HOST, user=settings.DB_USER,
                  password=settings.DB_PASSWORD, db_name=settings.DB_NAME):
         self.session = None
@@ -70,7 +68,7 @@ class Database():
         engine = create_engine(f'mysql+pymysql://{self.user}:{self.password}@{self.host}/{self.db_name}')
         Session = sessionmaker(bind=engine)
         self.session = Session()
-        # Base.metadata.create_all(engine)  # Создание таблиц
+        Base.metadata.create_all(engine)  # Создание таблиц
         return self.session
 
 
