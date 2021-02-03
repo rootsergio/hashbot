@@ -18,8 +18,7 @@ class User(Base):
     last_name = Column(String(50))
     username = Column(String(50))
     language_code = Column(String(10))
-    is_bot = Column(Boolean)
-    hashes_limit = Column(Integer, default=10)  # Ограничение кол-ва принимаемых одновременно  в работу хэшей
+    tasks_limit = Column(Integer, default=10)  # Ограничение кол-ва принимаемых одновременно  в работу хэшей
     wallet_id = Column(Integer, ForeignKey('wallet.id'))
 
     def __repr__(self):
@@ -56,23 +55,45 @@ class Hashe(Base):
 
 
 class Database:
-    def __init__(self, host=settings.DB_HOST, user=settings.DB_USER,
-                 password=settings.DB_PASSWORD, db_name=settings.DB_NAME):
+    def __init__(self, ):
         self.session = None
-        self.host = host
-        self.user = user
-        self.password = password
-        self.db_name = db_name
+        self.engine = None
 
-    def connect(self):
-        engine = create_engine(f'mysql+pymysql://{self.user}:{self.password}@{self.host}/{self.db_name}')
-        Session = sessionmaker(bind=engine)
+    def close(self):
+        self.session.close()
+
+    def connect(self, host=settings.DB_HOST, user=settings.DB_USER,
+                 password=settings.DB_PASSWORD, db_name=settings.DB_NAME):
+        self.engine = create_engine(f'mysql+pymysql://{user}:{password}@{host}/{db_name}')
+        Session = sessionmaker(bind=self.engine)
         self.session = Session()
-        Base.metadata.create_all(engine)  # Создание таблиц
-        return self.session
+        # return self.session
+
+    def create_tables(self):
+        Base.metadata.create_all(self.engine)
+
+    def check_user(self, chat_id):
+        return self.session.query(User.id).filter(User.chat_id == chat_id).scalar()
+
+    def create_user(self, chat_id, first_name, last_name, username, language_code, hashes_limit=10, wallet_id=None):
+        user = User(chat_id=chat_id, first_name=first_name, last_name=last_name, username=username,
+                    language_code=language_code, hashes_limit=hashes_limit, wallet_id=wallet_id)
+        self.session.add(user)
+        self.session.commit()
+
+    def get_count_active_task_for_user(self, chat_id):
+        return self.session.query(Task, User).filter(Task.user_id == User.id).filter(User.chat_id == chat_id).count()
+
+    def allowed_accept_tasks(self, chat_id):
+        task_limit_user = self.session.query(User.tasks_limit).filter(User.chat_id == chat_id).scalar()
+        if task_limit_user:
+            if self.get_count_active_task_for_user(chat_id) < task_limit_user:
+                return True
+        return False
 
 
 if __name__ == '__main__':
     db = Database()
-    session = db.connect()
-    session.close()
+    # print(db.get_active_task_for_user(123123))
+    db.close()
+
