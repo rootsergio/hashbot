@@ -38,9 +38,10 @@ class Task(Base):
     __tablename__ = 'tasks'
 
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey('users.id'))
+    chat_id = Column(Integer, ForeignKey('users.chat_id'))
     hash_list_id = Column(Integer)
     task_wrapper_id = Column(Integer)
+    supertask_id = Column(Integer, ForeignKey('supertask.id'))
     completed = Column(Boolean)  # Признак того, что выполнение задачи завершено
 
 
@@ -54,23 +55,38 @@ class Hashe(Base):
     is_send = Column(Boolean)   # Признак того, что пароль отправлен
 
 
+class Supertask(Base):
+    __tablename__ = 'supertask'
+
+    id = Column(Integer, primary_key=True, autoincrement=False)
+    price = Column(Float)
+
+
 class Database:
     def __init__(self, ):
         self.session = None
         self.engine = None
+        self.connect()
+
+    def __new__(cls):
+        if not hasattr(cls, 'instance'):
+            cls.instance = super(Database, cls).__new__(cls)
+        return cls.instance
 
     def close(self):
         self.session.close()
+
+    def close_engine(self):
+        self.engine.dispose()
 
     def connect(self, host=settings.DB_HOST, user=settings.DB_USER,
                  password=settings.DB_PASSWORD, db_name=settings.DB_NAME):
         self.engine = create_engine(f'mysql+pymysql://{user}:{password}@{host}/{db_name}')
         Session = sessionmaker(bind=self.engine)
         self.session = Session()
-        # return self.session
 
-    def create_tables(self):
-        Base.metadata.create_all(self.engine)
+    def create_tables(self, table):
+        Base.metadata.create_all(self.engine, tables=table)
 
     def check_user(self, chat_id):
         return self.session.query(User.id).filter(User.chat_id == chat_id).scalar()
@@ -82,7 +98,7 @@ class Database:
         self.session.commit()
 
     def get_count_active_task_for_user(self, chat_id):
-        return self.session.query(Task, User).filter(Task.user_id == User.id).filter(User.chat_id == chat_id).count()
+        return self.session.query(Task).filter(Task.chat_id == chat_id).filter(Task.completed is False).count()
 
     def allowed_accept_tasks(self, chat_id):
         task_limit_user = self.session.query(User.tasks_limit).filter(User.chat_id == chat_id).scalar()
@@ -91,9 +107,23 @@ class Database:
                 return True
         return False
 
+    def get_supertasks(self):
+        return self.session.query(Supertask.id).all()
+        # return [i[0] for i in result]
+
+    def add_task(self, chat_id, hash_list_id, supertask_id, task_wrapper_id):
+        task = Task(chat_id=chat_id, hash_list_id=hash_list_id, task_wrapper_id=task_wrapper_id, supertask_id=supertask_id)
+        self.session.add(task)
+        self.session.commit()
+
 
 if __name__ == '__main__':
     db = Database()
+    db.connect()
+    table_object = [Task.__table__]
+    db.create_tables(table_object)
     # print(db.get_active_task_for_user(123123))
+    # db.get_supertasks()
     db.close()
+    db.close_engine()
 
