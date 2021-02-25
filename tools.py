@@ -1,54 +1,53 @@
 import re
-from database import Database
 
 AVAILABLE_ALGORITHMS = {
-    'MD5': {
-        'id': 0,
+    0: {
+        'name': 'MD5',
         'check': re.compile(r"^([a-fA-F\d]{32})$")
     },
-    'bcrypt,blowfish(openbsd)': {
-        'id': 3200,
+    3200: {
+        'name': 'bcrypt,blowfish(openbsd)',
         'check': re.compile(r"^(\$2[ayb]\$.{56})$")
     },
-    'NTLM': {
-        'id': 1000,
+    1000: {
+        'name': 'NTLM',
         'check': re.compile(r"^([a-fA-F\d]{32})$")
     },
-    # 'WPA/WPA2': {
-    #     'id': 2500,
-    #     'check': re.compile(r"^(\$2[ayb]\$.{56})$")
-    # },
-    'Django (PBKDF2-SHA256)': {
-        'id': 10000,
+    2500: {
+        'id': 'WPA/WPA2',
+        'check': re.compile(r"^(\$2[ayb]\$.{56})$")
+    },
+    10000: {
+        'name': 'Django (PBKDF2-SHA256)',
         'check': re.compile(r"^(pbkdf2_sha256\$\d{5}\$.{56}=)$")
     },
-    'md5($salt.$pass)'.lower(): {
-        'id': 20,
+    20: {
+        'name': 'md5($salt.$pass)',
         'check': re.compile(r"^([a-fA-F\d]{32}):([a-zA-Z\d]{32})$")
         # 'check': re.compile(r"^([a-fA-F\d]{32}):([a-zA-Z\d]+)")   # попадает любое кол-во символов соли
     },
-    'md5crypt, MD5(Unix), FreeBSD MD5, Cisco-IOS MD5 2'.lower(): {
-        'id': 500,
+    500: {
+        'name': 'md5crypt, MD5(Unix), FreeBSD MD5, Cisco-IOS MD5 2',
         'check': re.compile(r"^(\$1\$\S{8}\$\S{22})$")
     },
-    'IPB2+, MyBB1.2+'.lower(): {
-        'id': 2811,
+    2811: {
+        'name': 'IPB2+, MyBB1.2+',
         'check': re.compile(r"^([a-zA-Z\d]{32}:[a-zA-Z\d]{8})$")
     },
-    'MySQL4.1/MySQL5+'.lower(): {
-        'id': 300,
+    300: {
+        'name': 'MySQL4.1/MySQL5+',
         'check': re.compile(r"^([a-zA-Z\d]{40})$")
     },
-    'SHA1'.lower(): {
-        'id': 100,
+    100: {
+        'name': 'SHA1',
         'check': re.compile(r"^([a-zA-Z\d]{40})$")
     },
-    'phpass, MD5(Wordpress), MD5(Joomla), MD5(phpBB3)'.lower(): {
-        'id': 400,
+    400: {
+        'name': 'phpass, MD5(Wordpress), MD5(Joomla), MD5(phpBB3)',
         'check': re.compile(r"^(\$H\$9\S{30})$")
     },
-    'sha1($salt.$pass)'.lower(): {
-        'id': 120,
+    120: {
+        'name': 'sha1($salt.$pass)',
         'check': re.compile(r"^([a-zA-Z\d]{40}:[a-zA-Z\d]{32})$")
     },
 }
@@ -65,6 +64,27 @@ def get_algorithms_from_hash_list(hash_list):
     if algorithms:
         return algorithms[0]
     return None
+
+
+def check_hashes_against_the_algorithm(hashes_list, algorithm_id):
+    """
+    Функция проверяет хэш на соответствие заданому алгоритму
+    :param hashes_list:
+    :param algorithm_id:
+    :return:
+    """
+    re_compile = AVAILABLE_ALGORITHMS.get(algorithm_id).get('check')
+    correct_hashes = list()
+    incorrect_hashes = list()
+    verified_hashes = dict()
+    for _hash in hashes_list:
+        if re_compile.search(_hash):
+            correct_hashes.append(_hash)
+        else:
+            incorrect_hashes.append(_hash)
+    verified_hashes['correct'] = correct_hashes
+    verified_hashes['incorrect'] = incorrect_hashes
+    return verified_hashes
 
 
 # def get_algorithms_from_hash_list(hash_list):
@@ -87,13 +107,8 @@ def get_algorithms_from_hash_list(hash_list):
 
 
 if __name__ == "__main__":
-    hashes = [
-        '400f0137ec3b5fb090539602eeaz08e75',
-        'bf4d6324ec93599bca1ec105f292es9b1',
-        # '$2a$10$wtkgo8IBo/PXdjjIfgFppOUocYgulIkkhvDnJIiV0TggbfWs37Cqi',
-        # '0e992b23adefdd5ecb7c1d6b1ea6ca8a:ksBW2po3Kvzq6GMYyVVTyGbeFrBdLlFh',
-        # '$1$iftktojc$9TKAn0cc6bWx21tqjW7tA1',
-        # 'c506d6ee045dd3da8e76fcaf7c1b3207',
-        # 'pbkdf2_sha256$15000$vHlJnOilaSOi$P9PDjkgILXqFJbEfAl02WZ5BV16oO7vZWWzIcoSQizI='
-    ]
-    print(get_algorithms_from_hash_list(hashes))
+    hashes = {'b1e60db8facbe14181005d5a35bf9716',
+                 'c506d6ee045dd3da8e76fcaf7c1b3207',
+                 'c506d6ee045dd3da8e76fc',
+                 '97128e8c1017c3927cec7ce2da24e67f'}
+    print(check_hashes_against_the_algorithm(hashes, 0))
