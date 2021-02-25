@@ -59,6 +59,7 @@ class Supertask(Base):
     __tablename__ = 'supertask'
 
     id = Column(Integer, primary_key=True, autoincrement=False)
+    name = Column(String(100), nullable=False)
     price = Column(Float)
 
 
@@ -81,9 +82,10 @@ class Database:
 
     def connect(self, host=settings.DB_HOST, user=settings.DB_USER,
                  password=settings.DB_PASSWORD, db_name=settings.DB_NAME):
-        self.engine = create_engine(f'mysql+pymysql://{user}:{password}@{host}/{db_name}')
-        Session = sessionmaker(bind=self.engine)
-        self.session = Session()
+        if not self.session:
+            self.engine = create_engine(f'mysql+pymysql://{user}:{password}@{host}/{db_name}')
+            Session = sessionmaker(bind=self.engine)
+            self.session = Session()
 
     def create_tables(self, table):
         Base.metadata.create_all(self.engine, tables=table)
@@ -107,9 +109,8 @@ class Database:
                 return True
         return False
 
-    def get_supertasks(self):
-        return self.session.query(Supertask.id).all()
-        # return [i[0] for i in result]
+    def get_supertasks_info(self):
+        return self.session.query(Supertask).all()
 
     def add_task(self, chat_id, hash_list_id, supertask_id, task_wrapper_id):
         task = Task(chat_id=chat_id, hash_list_id=hash_list_id, task_wrapper_id=task_wrapper_id, supertask_id=supertask_id)
@@ -120,10 +121,8 @@ class Database:
 if __name__ == '__main__':
     db = Database()
     db.connect()
-    table_object = [Task.__table__]
-    db.create_tables(table_object)
-    # print(db.get_active_task_for_user(123123))
-    # db.get_supertasks()
+    table_object = Supertask.__table__
+    db.drop_tables(table_object)
     db.close()
     db.close_engine()
 
