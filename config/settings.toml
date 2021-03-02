@@ -1,5 +1,5 @@
 # API hashtopolis
-API_URL = 'http://45.12.19.80/api/user.php'
+API_URL = 'http://78.47.97.23/api/user.php'
 
 # WPA converter file name
 WPA_CONVERTER = 'cap2hccapx.exe'
