@@ -66,13 +66,13 @@ class HashtopolisUserApi:
         }
         return self._request(data)
 
-    def create_hash_list(self, hash_list_name, is_salted: bool, format: int, hash_type: int, hashes):
+    def create_hash_list(self, hash_list_name, is_salted: bool, format: int, hash_type_id: int, hashes: list):
         """
         Create hash list
         :param hash_list_name: hash list name
         :param is_salted: Is salted: True or False
         :param format: Format hash: 0 or 1
-        :param hash_type: Hash type
+        :param hash_type_id: Hash type
         :param hashes: Hashes
         :return: response or None
         response example:
@@ -92,7 +92,7 @@ class HashtopolisUserApi:
             "isHexSalt": False,
             "separator": ":",
             "format": format,
-            "hashtypeId": hash_type,
+            "hashtypeId": hash_type_id,
             "accessGroupId": 1,
             "data": hashes,
             "useBrain": False,
@@ -122,10 +122,10 @@ class HashtopolisUserApi:
         }
         return self._request(data)
 
-    def set_supertask_priority(self, super_task_id, super_task_priority):
+    def set_supertask_priority(self, task_wrapper_id, super_task_priority):
         """
         Set the priority for a supertask.
-        :param super_task_id: super task id
+        :param task_wrapper_id: task wrapper id
         :param super_task_priority: super task priority
         :return: response or None
         response example:
@@ -136,8 +136,56 @@ class HashtopolisUserApi:
         data = {
             "section": "task",
             "request": "setSupertaskPriority",
-            "supertaskId": super_task_id,
+            "supertaskId": task_wrapper_id,
             "supertaskPriority": super_task_priority,
             "accessKey": API_KEY
         }
         return self._request(data)
+
+    def listTasks(self):
+        """
+        List all tasks on the server. There are two task types:
+        0 Normal Task
+        1 Supertask
+        response example:
+        {
+        "section": "task",
+        "request": "listTasks",
+        "response": "OK",
+        "tasks": [
+            {
+            "taskId": 7587,
+            "name": "test 2",
+            "type": 0,
+            "hashlistId": 1,
+            "priority": 5
+            },
+            {
+            "supertaskId": 33,
+            "name": "Increment ?a",
+            "type": 1,
+            "hashlistId": 1,
+            "priority": 3
+            }
+            ]
+        }
+        :return:
+        """
+        data = {
+            "section": "task",
+            "request": "listTasks",
+            "accessKey": API_KEY
+        }
+        return self._request(data)
+
+
+if __name__ == '__main__':
+    ht = HashtopolisUserApi()
+    response = ht.listTasks()
+    max_priority = 0
+    for task in response.get('tasks'):
+        priority = task.get('priority')
+        if priority > max_priority:
+            max_priority = priority
+    print(max_priority)
+    # response = ht.set_supertask_priority(super_task_id=318, super_task_priority=8666)
