@@ -1,6 +1,6 @@
 # from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, Integer, String, Boolean, Float, ForeignKey
+from sqlalchemy import Column, Integer, String, Boolean, Float, ForeignKey, func
 from config.config import settings
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -43,6 +43,7 @@ class Task(Base):
     task_wrapper_id = Column(Integer)
     supertask_id = Column(Integer, ForeignKey('supertask.id'))
     completed = Column(Boolean)  # Признак того, что выполнение задачи завершено
+    priority = Column(Integer)
 
 
 class Hashe(Base):
@@ -87,10 +88,10 @@ class Database:
             Session = sessionmaker(bind=self.engine)
             self.session = Session()
 
-    def create_tables(self, table):
+    def _create_tables(self, table):
         Base.metadata.create_all(self.engine, tables=table)
 
-    def check_user(self, chat_id):
+    def check_user_exist(self, chat_id):
         return self.session.query(User.id).filter(User.chat_id == chat_id).scalar()
 
     def create_user(self, chat_id, first_name, last_name, username, language_code, hashes_limit=10, wallet_id=None):
@@ -112,17 +113,22 @@ class Database:
     def get_supertasks_info(self):
         return self.session.query(Supertask).all()
 
-    def add_task(self, chat_id, hash_list_id, supertask_id, task_wrapper_id):
-        task = Task(chat_id=chat_id, hash_list_id=hash_list_id, task_wrapper_id=task_wrapper_id, supertask_id=supertask_id)
+    def add_task(self, chat_id, hash_list_id, supertask_id, task_wrapper_id, priority):
+        task = Task(chat_id=chat_id, hash_list_id=hash_list_id, task_wrapper_id=task_wrapper_id,
+                    supertask_id=supertask_id, priority=priority)
         self.session.add(task)
         self.session.commit()
+
+    def get_last_priority(self) -> int:
+        return self.session.query(func.max(Task.priority)).one()[0]
 
 
 if __name__ == '__main__':
     db = Database()
     db.connect()
-    table_object = Supertask.__table__
-    db.drop_tables(table_object)
+    # table_object = Supertask.__table__
+    # db.drop_tables(table_object)
+    res = db.get_last_priority()
+    print(res)
     db.close()
     db.close_engine()
-
