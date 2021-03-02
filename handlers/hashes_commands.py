@@ -4,6 +4,7 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 from tools import *
 from bot import dp
 from database import Database
+from datetime import datetime
 
 
 class OrderHashDecryption(StatesGroup):
@@ -67,22 +68,20 @@ async def get_supertask(message: types.Message, state: FSMContext):
 
 
 @dp.message_handler(state=OrderHashDecryption.waiting_for_supertask, content_types=types.ContentTypes.TEXT)
-async def create_task(message: types.Message, state: FSMContext):
+async def create_task_handler(message: types.Message, state: FSMContext):
+    user_data = await state.get_data()
+    supertask_id = user_data.get('list_supertask_id')
     try:
         chosen_supertask = int(message.text)
     except ValueError as err:
         chosen_supertask = None
-    user_data = await state.get_data()
-    supertask_id = user_data.get('list_supertask_id')
-    hashes = user_data.get('hashes')
     if chosen_supertask not in supertask_id:
         await message.answer("Пожалуйста, укажите шаблон, используя клавиатуру ниже")
         return
+    hash_type_id = user_data.get('chosen_algorithm')
+    hashes = user_data.get('hashes')
+    create_task(hash_list_name=f"tb_{message.chat.id}_{datetime.now().strftime('%Y%m%d_%H%m%S')}",
+                hash_type_id=hash_type_id, hashes=hashes, format=0, super_task_id=chosen_supertask)
 
-    # create_hashlist()
-
-    hashlist = 123
-    task_wrapper = 321
-    db.add_task(chat_id=message.chat.id, hash_list_id=hashlist, supertask_id=int(chosen_supertask), task_wrapper_id=task_wrapper)
     await message.answer(f"Выбран шаблон: {chosen_supertask}\nЗадание принято.\nВ работу приняты хэши:\n{hashes}")
 
