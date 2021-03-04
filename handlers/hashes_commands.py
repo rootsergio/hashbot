@@ -3,7 +3,7 @@ from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from tools import *
 from bot import dp
-from database import Database
+from database import DatabaseTlgBot
 from datetime import datetime
 
 
@@ -15,7 +15,7 @@ class OrderHashDecryption(StatesGroup):
     waiting_for_essid = State()
 
 
-db = Database()
+db = DatabaseTlgBot()
 db.connect()
 
 
@@ -80,8 +80,11 @@ async def create_task_handler(message: types.Message, state: FSMContext):
         return
     hash_type_id = user_data.get('chosen_algorithm')
     hashes = user_data.get('hashes')
-    create_task(hash_list_name=f"tb_{message.chat.id}_{datetime.now().strftime('%Y%m%d_%H%m%S')}",
-                hash_type_id=hash_type_id, hashes=hashes, format=0, super_task_id=chosen_supertask)
-
-    await message.answer(f"Выбран шаблон: {chosen_supertask}\nЗадание принято.\nВ работу приняты хэши:\n{hashes}")
+    if create_task(hash_list_name=f"tbot_{message.chat.id}_{datetime.now().strftime('%Y%m%d_%H%m%S')}",
+                   hash_type_id=hash_type_id, hashes=hashes, super_task_id=chosen_supertask):
+        await state.finish()
+        await message.answer(f"Задание принято.")
+        return
+    else:
+        await message.answer(f"Ошибка при назначении задания. Обратитесь в ТП.")
 

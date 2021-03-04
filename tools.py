@@ -1,8 +1,9 @@
 import re
 from api_hashtopolis import HashtopolisUserApi
-from database import Database
+from database import DatabaseTlgBot, DatabaseHashtopolis
 
 ID_SALTED_ALGORITHM = [20, 2811, 120]
+ID_WIFI_ALGORITHM = [2500]
 
 
 AVAILABLE_ALGORITHMS = {
@@ -100,23 +101,25 @@ def get_run_supertask_id(hash_list_id: int) -> int:
             return task.get('supertaskId')
 
 
-def create_task(hash_list_name: str, hash_type_id: int, hashes: list, format: int, super_task_id: int) -> bool:
+def create_task(hash_list_name: str, hash_type_id: int, hashes: list, super_task_id: int) -> bool:
     """
     Создание задачи в Hashtopolis
     :param hash_list_name: имя создаваемого хэшлиста
     :param hash_type_id: id алгоритма
     :param hashes: список хэшей
-    :param format: 0 - если хэши в текстовом виде, 1 - если в бинарном (например WPA)
+    :param super_task_id: id supertask
     :return: True or False
     """
+    is_salted = False
     if hash_type_id in ID_SALTED_ALGORITHM:
         is_salted = True
-    else:
-        is_salted = False
-    db = Database()
+    format = 0
+    if hash_type_id in ID_WIFI_ALGORITHM:
+        format = 1
+    db = DatabaseTlgBot()
     htapi = HashtopolisUserApi()
     response = htapi.create_hash_list(hash_list_name=hash_list_name, is_salted=is_salted, format=format,
-                                          hash_type_id=hash_type_id, hashes=bytes('\n'.join(hashes).encode('UTF-8')))
+                                      hash_type_id=hash_type_id, hashes=bytes('\n'.join(hashes).encode('UTF-8')))
     if not response or response.get('response') == 'ERROR':
         return False
     hash_list_id = response.get('hashlistId')
@@ -128,26 +131,20 @@ def create_task(hash_list_name: str, hash_type_id: int, hashes: list, format: in
     max_priority = db.get_last_priority()
     if not max_priority:
         # Если в таблице задач нет задачи с установленным приоритетом, берём максимальный приоритет среди активных задач
-        max_priority = 0
         response = htapi.listTasks()
-        for task in response.get('tasks'):
-            if task.get('priority') > max_priority:
-                max_priority = task.get('priority')
+        max_priority = response.get('tasks')[0].get('priority')
     response = htapi.set_supertask_priority(task_wrapper_id=task_wrapper_id, super_task_priority=max_priority - 1)
     if not response or response.get('response') == 'ERROR':
         return False
-    db.add_task(chat_id=hash_list_name.split("_")[1], hash_list_id=hash_list_id, supertask_id=super_task_id,
-                task_wrapper_id=task_wrapper_id, priority=max_priority - 1)
+    task_id = db.add_task(chat_id=hash_list_name.split("_")[1], hash_list_id=hash_list_id, super_task_id=super_task_id,
+                          task_wrapper_id=task_wrapper_id, priority=max_priority - 1)
+    db_hashtopolis = DatabaseHashtopolis()
+    hashes_id = db_hashtopolis.get_hash_id(hashlist_id=hash_list_id)
+    db.add_hash(task_id=task_id, hashes_id=hashes_id)
     return True
 
 
-
-
-
 if __name__ == "__main__":
-    hashes = {'b1e60db8facbe14181005d5a35bf9716',
-                 'c506d6ee045dd3da8e76fcaf7c1b3207',
-                 'c506d6ee045dd3da8e76fc',
-                 '97128e8c1017c3927cec7ce2da24e67f'}
+    hashes = ['b1e60db8facbe14181005d5a35bf9716',]
+    create_task('tb_142507767', 0, hashes, 4)
     # print(check_hashes_against_the_algorithm(hashes, 0))
-    print(get_run_supertask_id(786))
