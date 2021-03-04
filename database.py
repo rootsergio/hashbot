@@ -4,6 +4,7 @@ from sqlalchemy import Column, Integer, String, Boolean, Float, ForeignKey, func
 from config.config import settings
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+import pymysql.cursors
 
 # engine = create_engine('sqlite:///:memory:', echo=True)
 Base = declarative_base()
@@ -41,7 +42,7 @@ class Task(Base):
     chat_id = Column(Integer, ForeignKey('users.chat_id'))
     hash_list_id = Column(Integer)
     task_wrapper_id = Column(Integer)
-    supertask_id = Column(Integer, ForeignKey('supertask.id'))
+    super_task_id = Column(Integer)
     completed = Column(Boolean)  # Признак того, что выполнение задачи завершено
     priority = Column(Integer)
 
@@ -51,9 +52,9 @@ class Hashe(Base):
 
     id = Column(Integer, primary_key=True)
     task_id = Column(Integer, ForeignKey('tasks.id'))
-    hash_id = Column(Integer)
-    is_cracked = Column(Boolean)
-    is_send = Column(Boolean)   # Признак того, что пароль отправлен
+    hash_id = Column(Integer)   # аналогичен значению поля hashtopolis.Hash.hashId
+    is_cracked = Column(Boolean, default=False)
+    is_send = Column(Boolean, default=False)   # Признак того, что пароль отправлен
 
 
 class Supertask(Base):
@@ -64,7 +65,7 @@ class Supertask(Base):
     price = Column(Float)
 
 
-class Database:
+class DatabaseTlgBot:
     def __init__(self, ):
         self.session = None
         self.engine = None
@@ -72,7 +73,7 @@ class Database:
 
     def __new__(cls):
         if not hasattr(cls, 'instance'):
-            cls.instance = super(Database, cls).__new__(cls)
+            cls.instance = super(DatabaseTlgBot, cls).__new__(cls)
         return cls.instance
 
     def close(self):
@@ -113,22 +114,47 @@ class Database:
     def get_supertasks_info(self):
         return self.session.query(Supertask).all()
 
-    def add_task(self, chat_id, hash_list_id, supertask_id, task_wrapper_id, priority):
+    def add_task(self, chat_id, hash_list_id, super_task_id, task_wrapper_id, priority):
         task = Task(chat_id=chat_id, hash_list_id=hash_list_id, task_wrapper_id=task_wrapper_id,
-                    supertask_id=supertask_id, priority=priority)
+                    super_task_id=super_task_id, priority=priority)
         self.session.add(task)
+        self.session.commit()
+        self.session.refresh(task)
+        return task.id
+
+    def add_hash(self, task_id, hashes_id):
+        for hash_id in hashes_id:
+            hash = Hashe(task_id=task_id, hash_id=hash_id)
+            self.session.add(hash)
         self.session.commit()
 
     def get_last_priority(self) -> int:
         return self.session.query(func.max(Task.priority)).one()[0]
 
 
+class DatabaseHashtopolis:
+    def __init__(self):
+        self.connection = pymysql.connect(host=settings.DB_HOST, user=settings.DB_USER, password=settings.DB_PASSWORD,
+                                          database=settings.DB_NAME_HASHTOPOLIS, cursorclass=pymysql.cursors.DictCursor)
+
+    def get_hash_id(self, hashlist_id):
+        with self.connection:
+            with self.connection.cursor() as cursor:
+                sql = "SELECT `hashId` FROM `Hash` WHERE `hashlistId`=%s"
+                cursor.execute(sql, (hashlist_id,))
+                result = cursor.fetchall()
+                return [i.get('hashId') for i in result]
+
+
+
 if __name__ == '__main__':
-    db = Database()
-    db.connect()
+    # db = DatabaseTlgBot()
+    # db.connect()
     # table_object = Supertask.__table__
     # db.drop_tables(table_object)
-    res = db.get_last_priority()
-    print(res)
-    db.close()
-    db.close_engine()
+    # res = db.get_last_priority()
+    # print(res)
+    # db.close()
+    # db.close_engine()
+    db = DatabaseHashtopolis()
+    print(db.get_hash_id(6340))
