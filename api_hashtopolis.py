@@ -66,7 +66,7 @@ class HashtopolisUserApi:
         }
         return self._request(data)
 
-    def create_hash_list(self, hash_list_name, is_salted: bool, format: int, hash_type_id: int, hashes: list):
+    def create_hash_list(self, hash_list_name, is_salted: bool, format: int, hash_type_id: int, hashes: bytes):
         """
         Create hash list
         :param hash_list_name: hash list name
@@ -183,9 +183,10 @@ if __name__ == '__main__':
     ht = HashtopolisUserApi()
     response = ht.listTasks()
     max_priority = 0
-    for task in response.get('tasks'):
-        priority = task.get('priority')
-        if priority > max_priority:
-            max_priority = priority
-    print(max_priority)
+    print(response.get('tasks')[0].get('priority'))
+    # for task in response.get('tasks'):
+    #     priority = task.get('priority')
+    #     if priority > max_priority:
+    #         max_priority = priority
+    # print(max_priority)
     # response = ht.set_supertask_priority(super_task_id=318, super_task_priority=8666)
