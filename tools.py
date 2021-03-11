@@ -136,8 +136,8 @@ def create_task(hash_list_name: str, hash_type_id: int, hashes: list, super_task
     response = htapi.set_supertask_priority(task_wrapper_id=task_wrapper_id, super_task_priority=max_priority - 1)
     if not response or response.get('response') == 'ERROR':
         return False
-    task_id = db.add_task(chat_id=hash_list_name.split("_")[1], hash_list_id=hash_list_id, super_task_id=super_task_id,
-                          task_wrapper_id=task_wrapper_id, priority=max_priority - 1)
+    task_id = db.add_task(chat_id=hash_list_name.split("_")[1], hashlist_id=hash_list_id, supertask_id=super_task_id,
+                          taskwrapper_id=task_wrapper_id, priority=max_priority - 1)
     db_hashtopolis = DatabaseHashtopolis()
     hashes_id = db_hashtopolis.get_hash_id(hashlist_id=hash_list_id)
     db.add_hash(task_id=task_id, hashes_id=hashes_id)

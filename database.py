@@ -92,9 +92,9 @@ class DatabaseTlgBot:
     def check_user_exist(self, chat_id):
         return self.session.query(User.id).filter(User.chat_id == chat_id).scalar()
 
-    def create_user(self, chat_id, first_name, last_name, username, language_code, hashes_limit=10, wallet_id=None):
+    def create_user(self, chat_id, first_name, last_name, username, language_code, tasks_limit=10, wallet_id=None):
         user = User(chat_id=chat_id, first_name=first_name, last_name=last_name, username=username,
-                    language_code=language_code, hashes_limit=hashes_limit, wallet_id=wallet_id)
+                    language_code=language_code, tasks_limit=tasks_limit, wallet_id=wallet_id)
         self.session.add(user)
         self.session.commit()
 
@@ -111,9 +111,9 @@ class DatabaseTlgBot:
     def get_supertasks_info(self):
         return self.session.query(Supertask).all()
 
-    def add_task(self, chat_id, hash_list_id, super_task_id, task_wrapper_id, priority):
-        task = Task(chat_id=chat_id, hash_list_id=hash_list_id, task_wrapper_id=task_wrapper_id,
-                    super_task_id=super_task_id, priority=priority)
+    def add_task(self, taskwrapper_id, chat_id, hashlist_id, supertask_id, priority):
+        task = Task(taskwrapper_id=taskwrapper_id, chat_id=chat_id, hashlist_id=hashlist_id,
+                    supertask_id=supertask_id, priority=priority)
         self.session.add(task)
         self.session.commit()
         self.session.refresh(task)
