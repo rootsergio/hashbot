@@ -13,8 +13,7 @@ Base = declarative_base()
 class User(Base):
     __tablename__ = 'users'
 
-    id = Column(Integer, primary_key=True)
-    chat_id = Column(Integer, unique=True)
+    chat_id = Column(Integer, primary_key=True, autoincrement=False)
     first_name = Column(String(50))
     last_name = Column(String(50))
     username = Column(String(50))
@@ -38,31 +37,29 @@ class Wallet(Base):
 class Task(Base):
     __tablename__ = 'tasks'
 
-    id = Column(Integer, primary_key=True)
+    taskwrapper_id = Column(Integer, primary_key=True, autoincrement=False)
     chat_id = Column(Integer, ForeignKey('users.chat_id'))
-    hash_list_id = Column(Integer)
-    task_wrapper_id = Column(Integer)
-    super_task_id = Column(Integer)
-    completed = Column(Boolean)  # Признак того, что выполнение задачи завершено
+    hashlist_id = Column(Integer)      # аналогичен значению поля hashtopolis.Hashlist(hashlistId)
+    supertask_id = Column(Integer)     # аналогичен значению поля hashtopolis.Supertask(supertaskId)
+    completed = Column(Boolean)         # Признак того, что выполнение задачи завершено
     priority = Column(Integer)
 
 
 class Hashe(Base):
     __tablename__ = 'hashes'
 
-    id = Column(Integer, primary_key=True)
-    task_id = Column(Integer, ForeignKey('tasks.id'))
-    hash_id = Column(Integer)   # аналогичен значению поля hashtopolis.Hash.hashId
-    is_cracked = Column(Boolean, default=False)
-    is_send = Column(Boolean, default=False)   # Признак того, что пароль отправлен
+    hash_id = Column(Integer, primary_key=True, autoincrement=False)  # аналогичен значению поля hashtopolis.Hash(hashId)
+    task_id = Column(Integer, ForeignKey('tasks.taskwrapper_id'))
+    is_cracked = Column(Boolean, default=False)     # признак того, что пароль найден
+    is_send = Column(Boolean, default=False)        # Признак того, что пароль отправлен пользователю в чат
 
 
 class Supertask(Base):
     __tablename__ = 'supertask'
 
-    id = Column(Integer, primary_key=True, autoincrement=False)
-    name = Column(String(100), nullable=False)
-    price = Column(Float)
+    id = Column(Integer, primary_key=True, autoincrement=False)  # аналогичен значению поля hashtopolis.Supertask(supertaskId)
+    name = Column(String(100), nullable=False)  # аналогичен значению поля hashtopolis.Supertask(supertaskName)
+    price = Column(Float)  # стоимость за хэш
 
 
 class DatabaseTlgBot:
@@ -146,15 +143,16 @@ class DatabaseHashtopolis:
                 return [i.get('hashId') for i in result]
 
 
-
 if __name__ == '__main__':
-    # db = DatabaseTlgBot()
-    # db.connect()
-    # table_object = Supertask.__table__
+    pass
+    db = DatabaseTlgBot()
+    db.connect()
+    table_object = [Supertask.__table__, User.__table__, Wallet.__table__, Task.__table__, Hashe.__table__]
     # db.drop_tables(table_object)
+    db._create_tables(table_object)
     # res = db.get_last_priority()
     # print(res)
-    # db.close()
-    # db.close_engine()
-    db = DatabaseHashtopolis()
-    print(db.get_hash_id(6340))
+    db.close()
+    db.close_engine()
+    # db = DatabaseHashtopolis()
+    # print(db.get_hash_id(6340))
