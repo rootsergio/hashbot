@@ -19,7 +19,6 @@ class User(Base):
     username = Column(String(50))
     language_code = Column(String(10))
     tasks_limit = Column(Integer, default=10)  # Ограничение кол-ва принимаемых одновременно  в работу хэшей
-    wallet_id = Column(Integer, ForeignKey('wallet.id'))
 
     def __repr__(self):
         return f"<User(id={self.id}, fullname='{self.first_name} {self.last_name}', nickname={self.username})>"
@@ -29,6 +28,7 @@ class Wallet(Base):
     __tablename__ = 'wallet'
 
     id = Column(Integer, primary_key=True)
+    chat_id = Column(Integer, ForeignKey('users.chat_id'))
     btc = Column(Float, default=0)
     usd = Column(Float, default=0)
     rub = Column(Float, default=0)
@@ -85,17 +85,23 @@ class DatabaseTlgBot:
             self.engine = create_engine(f'mysql+pymysql://{user}:{password}@{host}/{db_name}')
             Session = sessionmaker(bind=self.engine)
             self.session = Session()
+            return self.session
 
     def _create_tables(self, table):
         Base.metadata.create_all(self.engine, tables=table)
 
     def check_user_exist(self, chat_id):
-        return self.session.query(User.id).filter(User.chat_id == chat_id).scalar()
+        return self.session.query(User.chat_id).filter(User.chat_id == chat_id).scalar()
 
-    def create_user(self, chat_id, first_name, last_name, username, language_code, tasks_limit=10, wallet_id=None):
+    def create_user(self, chat_id, first_name, last_name, username, language_code, tasks_limit=10):
+        if self.check_user_exist(chat_id=chat_id):
+            return
         user = User(chat_id=chat_id, first_name=first_name, last_name=last_name, username=username,
-                    language_code=language_code, tasks_limit=tasks_limit, wallet_id=wallet_id)
+                    language_code=language_code, tasks_limit=tasks_limit)
+        wallet = Wallet(chat_id=chat_id)
         self.session.add(user)
+        self.session.commit()
+        self.session.add(wallet)
         self.session.commit()
 
     def get_count_active_task_for_user(self, chat_id):
@@ -145,14 +151,16 @@ class DatabaseHashtopolis:
 
 if __name__ == '__main__':
     pass
-    db = DatabaseTlgBot()
-    db.connect()
-    table_object = [Supertask.__table__, User.__table__, Wallet.__table__, Task.__table__, Hashe.__table__]
+    # db = DatabaseTlgBot()
+    # db.connect()
+    # table_object = [Supertask.__table__, User.__table__, Wallet.__table__, Task.__table__, Hashe.__table__]
     # db.drop_tables(table_object)
-    db._create_tables(table_object)
+    # db._create_tables(table_object)
     # res = db.get_last_priority()
     # print(res)
-    db.close()
-    db.close_engine()
+    # if not db.check_user_exist(123):
+    #     print('not user')
+    # db.close()
+    # db.close_engine()
     # db = DatabaseHashtopolis()
     # print(db.get_hash_id(6340))

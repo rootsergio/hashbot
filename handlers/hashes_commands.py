@@ -16,12 +16,18 @@ class OrderHashDecryption(StatesGroup):
 
 
 db = DatabaseTlgBot()
-db.connect()
 
 
 # rh = recovery hashes
 @dp.message_handler(commands="recovery", state="*")
 async def algorithm_request(message: types.Message):
+    chat_id = message.chat.id
+    first_name = message.chat.first_name
+    last_name = message.chat.last_name
+    username = message.chat.username
+    language_code = message.from_user.language_code
+    db.create_user(chat_id=chat_id, first_name=first_name, last_name=last_name, username=username,
+                   language_code=language_code)
     template_message = ''
     for key, value in AVAILABLE_ALGORITHMS.items():
         template_message = template_message + f"*{key}*     {value.get('name')}\n"
