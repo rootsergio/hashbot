@@ -57,16 +57,22 @@ async def get_supertask(message: types.Message, state: FSMContext):
     user_data = await state.get_data()
     algorithm_id = user_data.get('chosen_algorithm')
     verified_hashes = check_hashes_against_the_algorithm(hashes, algorithm_id)
-    if verified_hashes.get('incorrect'):
-        incorrect_hashes = ', '.join(verified_hashes.get('incorrect'))
-        await message.answer(f"Следующие хэши не соответствуют выбранному алгоритму:\n{incorrect_hashes}."
-                             f"\nПроверьте их корректность")
+    correct_hashes = verified_hashes.get('correct')
+    incorrect_hashes = verified_hashes.get('incorrect')
+    if not correct_hashes:
+        await message.answer(f"Переданные хэши не соответствуют выбранному алгоритму:\n{incorrect_hashes}."
+                             f"\nПроверьте их корректность или обратитесь к разработчику.")
+        return
+    # if incorrect_hashes:
+    #     incorrect_hashes_str = ', '.join(incorrect_hashes)
+    #     await message.answer(f"Следующие хэши не соответствуют выбранному алгоритму:\n{incorrect_hashes_str}."
+    #                          f"\nПроверьте их корректность")
     # Вывод списка супертасков
     supertasks_info = db.get_supertasks_info()
     supertask_id = list()
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
     for supertask in supertasks_info:
-        keyboard.add(str(supertask.id))
+        keyboard.add(f"{str(supertask.id)}: Стоимость за хэш: {supertask.price}")
         supertask_id.append(supertask.id)
     await message.answer(f"Выберите шаблон для восстановления пароля", reply_markup=keyboard)
     await OrderHashDecryption.waiting_for_supertask.set()
@@ -78,7 +84,7 @@ async def create_task_handler(message: types.Message, state: FSMContext):
     user_data = await state.get_data()
     supertask_id = user_data.get('list_supertask_id')
     try:
-        chosen_supertask = int(message.text)
+        chosen_supertask = int(message.text.split(":")[0].rstrip())
     except ValueError as err:
         chosen_supertask = None
     if chosen_supertask not in supertask_id:
@@ -93,4 +99,3 @@ async def create_task_handler(message: types.Message, state: FSMContext):
         return
     else:
         await message.answer(f"Ошибка при назначении задания. Обратитесь в ТП.")
-
