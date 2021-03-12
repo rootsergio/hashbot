@@ -125,22 +125,22 @@ def create_task(hash_list_name: str, hash_type_id: int, hashes: list, super_task
     hash_list_id = response.get('hashlistId')
     if not htapi.run_super_task(hash_list_id=hash_list_id, super_task_id=super_task_id):
         return False
-    task_wrapper_id = get_run_supertask_id(hash_list_id=hash_list_id)
-    if not task_wrapper_id:
+    taskwrapper_id = get_run_supertask_id(hash_list_id=hash_list_id)
+    if not taskwrapper_id:
         return False
     max_priority = db.get_last_priority()
     if not max_priority:
         # Если в таблице задач нет задачи с установленным приоритетом, берём максимальный приоритет среди активных задач
         response = htapi.listTasks()
         max_priority = response.get('tasks')[0].get('priority')
-    response = htapi.set_supertask_priority(task_wrapper_id=task_wrapper_id, super_task_priority=max_priority - 1)
+    response = htapi.set_supertask_priority(task_wrapper_id=taskwrapper_id, super_task_priority=max_priority - 1)
     if not response or response.get('response') == 'ERROR':
         return False
-    task_id = db.add_task(chat_id=hash_list_name.split("_")[1], hashlist_id=hash_list_id, supertask_id=super_task_id,
-                          taskwrapper_id=task_wrapper_id, priority=max_priority - 1)
+    db.add_task(chat_id=hash_list_name.split("_")[1], hashlist_id=hash_list_id, supertask_id=super_task_id,
+                          taskwrapper_id=taskwrapper_id, priority=max_priority - 1)
     db_hashtopolis = DatabaseHashtopolis()
     hashes_id = db_hashtopolis.get_hash_id(hashlist_id=hash_list_id)
-    db.add_hash(task_id=task_id, hashes_id=hashes_id)
+    db.add_hash(taskwrapper_id=taskwrapper_id, hashes_id=hashes_id)
     return True
 
 
