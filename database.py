@@ -49,7 +49,7 @@ class Hashe(Base):
     __tablename__ = 'hashes'
 
     hash_id = Column(Integer, primary_key=True, autoincrement=False)  # аналогичен значению поля hashtopolis.Hash(hashId)
-    task_id = Column(Integer, ForeignKey('tasks.taskwrapper_id'))
+    taskwrapper_id = Column(Integer, ForeignKey('tasks.taskwrapper_id'))
     is_cracked = Column(Boolean, default=False)     # признак того, что пароль найден
     is_send = Column(Boolean, default=False)        # Признак того, что пароль отправлен пользователю в чат
 
@@ -63,21 +63,24 @@ class Supertask(Base):
 
 
 class DatabaseTlgBot:
-    def __init__(self, ):
+    __instance = None
+
+    def __init__(self):
+        if self.__initialized:
+            return
+        self.__initialized = True
         self.session = None
         self.engine = None
         self.connect()
 
     def __new__(cls):
-        if not hasattr(cls, 'instance'):
-            cls.instance = super(DatabaseTlgBot, cls).__new__(cls)
-        return cls.instance
+        if cls.__instance is None:
+            cls.__instance = super(DatabaseTlgBot, cls).__new__(cls)
+            cls.__instance.__initialized = False
+        return cls.__instance
 
-    def close(self):
-        self.session.close()
-
-    def close_engine(self):
-        self.engine.dispose()
+    def _create_tables(self, table):
+        Base.metadata.create_all(self.engine, tables=table)
 
     def connect(self, host=settings.DB_HOST, user=settings.DB_USER,
                  password=settings.DB_PASSWORD, db_name=settings.DB_NAME):
@@ -87,8 +90,12 @@ class DatabaseTlgBot:
             self.session = Session()
             return self.session
 
-    def _create_tables(self, table):
-        Base.metadata.create_all(self.engine, tables=table)
+    def close(self):
+        self.session.close()
+        self.close_engine()
+
+    def close_engine(self):
+        self.engine.dispose()
 
     def check_user_exist(self, chat_id):
         return self.session.query(User.chat_id).filter(User.chat_id == chat_id).scalar()
@@ -107,6 +114,12 @@ class DatabaseTlgBot:
     def get_count_active_task_for_user(self, chat_id):
         return self.session.query(Task).filter(Task.chat_id == chat_id).filter(Task.completed is False).count()
 
+    def get_supertasks_info(self):
+        return self.session.query(Supertask).all()
+
+    def get_last_priority(self) -> int:
+        return self.session.query(func.min(Task.priority)).filter(Task.completed == 0).one()[0]
+
     def allowed_accept_tasks(self, chat_id):
         task_limit_user = self.session.query(User.tasks_limit).filter(User.chat_id == chat_id).scalar()
         if task_limit_user:
@@ -114,25 +127,18 @@ class DatabaseTlgBot:
                 return True
         return False
 
-    def get_supertasks_info(self):
-        return self.session.query(Supertask).all()
-
     def add_task(self, taskwrapper_id, chat_id, hashlist_id, supertask_id, priority):
         task = Task(taskwrapper_id=taskwrapper_id, chat_id=chat_id, hashlist_id=hashlist_id,
                     supertask_id=supertask_id, priority=priority)
         self.session.add(task)
         self.session.commit()
         self.session.refresh(task)
-        return task.id
 
-    def add_hash(self, task_id, hashes_id):
+    def add_hash(self, taskwrapper_id, hashes_id):
         for hash_id in hashes_id:
-            hash = Hashe(task_id=task_id, hash_id=hash_id)
+            hash = Hashe(taskwrapper_id=taskwrapper_id, hash_id=hash_id)
             self.session.add(hash)
         self.session.commit()
-
-    def get_last_priority(self) -> int:
-        return self.session.query(func.max(Task.priority)).one()[0]
 
 
 class DatabaseHashtopolis:
@@ -141,17 +147,26 @@ class DatabaseHashtopolis:
                                           database=settings.DB_NAME_HASHTOPOLIS, cursorclass=pymysql.cursors.DictCursor)
 
     def get_hash_id(self, hashlist_id):
-        with self.connection:
-            with self.connection.cursor() as cursor:
-                sql = "SELECT `hashId` FROM `Hash` WHERE `hashlistId`=%s"
-                cursor.execute(sql, (hashlist_id,))
-                result = cursor.fetchall()
-                return [i.get('hashId') for i in result]
+        with self.connection.cursor() as cursor:
+            sql = "SELECT `hashId` FROM `Hash` WHERE `hashlistId`=%s"
+            cursor.execute(sql, (hashlist_id,))
+            result = cursor.fetchall()
+            return [i.get('hashId') for i in result]
+
+    def check_cracked_hash(self, taskwrapper_id):
+        with self.connection.cursor() as cursor:
+            sql = "SELECT h.hashId, h.plaintext FROM Hash h JOIN TaskWrapper tw ON tw.hashlistId = h.hashlistId " \
+                  "WHERE tw.taskWrapperId = %s AND h.isCracked = 1;"
+            cursor.execute(sql, (taskwrapper_id,))
+            return cursor.fetchall()
+
 
 
 if __name__ == '__main__':
-    pass
-    # db = DatabaseTlgBot()
+    db = DatabaseHashtopolis()
+    print(db.check_cracked_hash(7257))
+    # for i in range(10):
+    # create_user(chat_id=123123, first_name='123', last_name='312', username='111', language_code='ке')
     # db.connect()
     # table_object = [Supertask.__table__, User.__table__, Wallet.__table__, Task.__table__, Hashe.__table__]
     # db.drop_tables(table_object)
