@@ -6,6 +6,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 import pymysql.cursors
 
+
 # engine = create_engine('sqlite:///:memory:', echo=True)
 Base = declarative_base()
 
@@ -47,8 +48,8 @@ class Task(Base):
 
 class Hashe(Base):
     __tablename__ = 'hashes'
-
-    hash_id = Column(Integer, primary_key=True, autoincrement=False)  # аналогичен значению поля hashtopolis.Hash(hashId)
+    id = Column(Integer, primary_key=True)
+    hash_id = Column(Integer, unique=False)  # аналогичен значению поля hashtopolis.Hash(hashId)
     taskwrapper_id = Column(Integer, ForeignKey('tasks.taskwrapper_id'))
     is_cracked = Column(Boolean, default=False)     # признак того, что пароль найден
     is_send = Column(Boolean, default=False)        # Признак того, что пароль отправлен пользователю в чат
@@ -120,6 +121,14 @@ class DatabaseTlgBot:
     def get_last_priority(self) -> int:
         return self.session.query(func.min(Task.priority)).filter(Task.completed == 0).one()[0]
 
+    def get_taskwrapper_max_id(self):
+        max_id = self.session.query(func.max(Task.taskwrapper_id)).one()[0]
+        if max_id > 1000000:
+            return max_id + 1
+        if not max_id:
+            return 1000000
+        return max_id + 1000000
+
     def allowed_accept_tasks(self, chat_id):
         task_limit_user = self.session.query(User.tasks_limit).filter(User.chat_id == chat_id).scalar()
         if task_limit_user:
@@ -134,9 +143,9 @@ class DatabaseTlgBot:
         self.session.commit()
         self.session.refresh(task)
 
-    def add_hash(self, taskwrapper_id, hashes_id):
+    def add_hash(self, taskwrapper_id: int, hashes_id: list, is_cracked: int = 0):
         for hash_id in hashes_id:
-            hash = Hashe(taskwrapper_id=taskwrapper_id, hash_id=hash_id)
+            hash = Hashe(taskwrapper_id=taskwrapper_id, hash_id=hash_id, is_cracked=is_cracked)
             self.session.add(hash)
         self.session.commit()
 
@@ -146,25 +155,58 @@ class DatabaseHashtopolis:
         self.connection = pymysql.connect(host=settings.DB_HOST, user=settings.DB_USER, password=settings.DB_PASSWORD,
                                           database=settings.DB_NAME_HASHTOPOLIS, cursorclass=pymysql.cursors.DictCursor)
 
-    def get_hash_id(self, hashlist_id):
+    def get_hash_id(self, hashlist_id: int = None, hash: str = None) -> list:
+        """
+        Возвращает hashId из Hashtopolis.Hash. В зависимости от полученного аргумента возвращает hashId всех хэшей,
+        принадлежащих одному hashlist (аргумент hashlist_id) или
+        hashId одного хэша, полученного в виде строки (аргумент hash).
+        :param hashlist_id: id hashlist
+        :param hash: hash
+        :return: Список hashId
+        """
         with self.connection.cursor() as cursor:
-            sql = "SELECT `hashId` FROM `Hash` WHERE `hashlistId`=%s"
-            cursor.execute(sql, (hashlist_id,))
+            if hashlist_id:
+                sql = "SELECT `hashId` FROM `Hash` WHERE `hashlistId`=%s"
+                cursor.execute(sql, (hashlist_id,))
+            if hash:
+                sql = f"SELECT `hashId` FROM `Hash` WHERE `hash`='{hash}' LIMIT 1"
+                print(sql)
+                cursor.execute(sql)
             result = cursor.fetchall()
             return [i.get('hashId') for i in result]
 
-    def check_cracked_hash(self, taskwrapper_id):
+    def check_cracked_hash_for_taskwrapper(self, taskwrapper_id):
         with self.connection.cursor() as cursor:
             sql = "SELECT h.hashId, h.plaintext FROM Hash h JOIN TaskWrapper tw ON tw.hashlistId = h.hashlistId " \
                   "WHERE tw.taskWrapperId = %s AND h.isCracked = 1;"
             cursor.execute(sql, (taskwrapper_id,))
             return cursor.fetchall()
 
+    def check_hashes_in_available(self, hashlist: list) -> list:
+        """
+        Функция проверяет хэши по базе и возвращает хэш и пароль
+        :param hashlist:
+        :return:
+        """
+        with self.connection.cursor() as cursor:
+            sql = 'SELECT DISTINCT (hash), plaintext FROM Hash WHERE Hash IN ("{}") AND isCracked = 1;' \
+                .format('","'.join(hashlist))
+            print(sql)
+            cursor.execute(sql)
+            return cursor.fetchall()
 
 
 if __name__ == '__main__':
+    # db = DatabaseTlgBot()
+    # print(db.get_taskwrapper_max_id())
     db = DatabaseHashtopolis()
-    print(db.check_cracked_hash(7257))
+    # hashlist = ['004823ba55c79cd95a331b1283d8cbfc',
+    #             '0096f31cafba65a4719b644fdda7d885',
+    #             '00f3907872e28ec3cbd7608f3efc728f',
+    #             '0126e02d0a062ae96bb9f6053d26ef17',
+    #             '01a88086180795d2cc9a2d9ea348521d', ]
+    res = db.get_hash_id(hash='004823ba55c79cd95a331b1283d8cbfc')
+    # print(type(res))
     # for i in range(10):
     # create_user(chat_id=123123, first_name='123', last_name='312', username='111', language_code='ке')
     # db.connect()
