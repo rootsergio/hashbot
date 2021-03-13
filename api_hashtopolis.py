@@ -178,12 +178,31 @@ class HashtopolisUserApi:
         }
         return self._request(data)
 
+    def deleteHashlist(self, hashlist_id):
+        """
+        Delete a hashlist and all according hashes.
+        This will remove a hashlist from the superhashlists it is member of.
+        :return:
+        response example:
+        {
+            "section": "hashlist",
+            "request": "deleteHashlist",
+            "response": "OK"
+        }
+        """
+        data = {
+            "section": "hashlist",
+            "request": "deleteHashlist",
+            "hashlistId": hashlist_id,
+            "accessKey": API_KEY
+        }
+        return self._request(data)
+
 
 if __name__ == '__main__':
     ht = HashtopolisUserApi()
-    response = ht.listTasks()
-    max_priority = 0
-    print(response.get('tasks')[0].get('priority'))
+    response = ht.deleteHashlist(6494)
+    print(response)
     # for task in response.get('tasks'):
     #     priority = task.get('priority')
     #     if priority > max_priority:
