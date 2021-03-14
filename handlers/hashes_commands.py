@@ -93,7 +93,7 @@ async def create_task_handler(message: types.Message, state: FSMContext):
     hash_type_id = user_data.get('chosen_algorithm')
     hashes = user_data.get('hashes')
     if create_task(hash_list_name=f"tbot_{message.chat.id}_{datetime.now().strftime('%Y%m%d_%H%m%S')}",
-                   hash_type_id=hash_type_id, hashes=hashes, super_task_id=chosen_supertask, chat_id=message.chat.id):
+                   hash_type_id=hash_type_id, hashes=hashes, supertask_id=chosen_supertask, chat_id=message.chat.id):
         await state.finish()
         await message.answer(f"Задание принято.")
         return

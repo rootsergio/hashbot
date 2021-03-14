@@ -100,13 +100,13 @@ def get_run_supertask_id(hash_list_id: int) -> int:
             return task.get('supertaskId')
 
 
-def create_task(hash_list_name: str, hash_type_id: int, hashes: list, super_task_id: int, chat_id: int) -> bool:
+def create_task(hash_list_name: str, hash_type_id: int, hashes: list, supertask_id: int, chat_id: int) -> bool:
     """
     Создание задачи в Hashtopolis
     :param hash_list_name: имя создаваемого хэшлиста
     :param hash_type_id: id алгоритма
     :param hashes: список хэшей
-    :param super_task_id: id supertask
+    :param supertask_id: id supertask
     :param chat_id: id чата
     :return: True or False
     """
@@ -114,14 +114,31 @@ def create_task(hash_list_name: str, hash_type_id: int, hashes: list, super_task
     db_hashtopolis = DatabaseHashtopolis()
     db_tlgbot = DatabaseTlgBot()
     result = db_hashtopolis.check_hashes_in_available(hashes)
-    if result:
-        taskwrapper_id = db_tlgbot.get_taskwrapper_max_id()
-        db_tlgbot.add_task(taskwrapper_id=taskwrapper_id, chat_id=chat_id, hashlist_id=None, supertask_id=super_task_id,
-                           priority=0)
-        for hash in result:
-            hash_id = db_hashtopolis.get_hash_id(hash=hash.get('hash'))
-            db_tlgbot.add_hash(hashes_id=hash_id, taskwrapper_id=taskwrapper_id, is_cracked=1)
-            hashes.remove(hash.get('hash'))
+    if result:  # Если в БД уже есть такие хэши
+        # Смотрим, есть для них пароли
+        cracked_hashes = {hash.get('hash') for hash in result if hash.get('plaintext')}
+        if cracked_hashes:  # Если пароли есть, создаём таск и добавляем ID хэшей в БД
+            taskwrapper_id = db_tlgbot.get_taskwrapper_max_id()
+            db_tlgbot.add_task(taskwrapper_id=taskwrapper_id, chat_id=chat_id, hashlist_id=None,
+                               supertask_id=supertask_id, priority=0, complited=True)
+            for hash in cracked_hashes:
+                hash_id = db_hashtopolis.get_hash_id(hash=hash, is_cracked=1)
+                db_tlgbot.add_hash(hashes_id=hash_id, taskwrapper_id=taskwrapper_id, is_cracked=1)
+                hashes.remove(hash.get('hash'))
+        # Проверяем наличие хэшей, для которых в БД нет пароля
+        uncracked_hashes = {hash.get('hash') for hash in result if hash.get('hash') not in cracked_hashes}
+        if uncracked_hashes:
+            taskwrapper_id = db_tlgbot.get_taskwrapper_max_id()
+            db_tlgbot.add_task(taskwrapper_id=taskwrapper_id, chat_id=chat_id, hashlist_id=None,
+                               supertask_id=supertask_id, priority=0, complited=True)
+            # Если для хэша выполнены все таски, соответствующие супертаску, полученоому от пользователя
+            for hash in uncracked_hashes:
+                count_unfulfilled_tasks = db_hashtopolis.get_the_count_of_unfulfilled_tasks(hash=hash, supertask_id=supertask_id)
+                if count_unfulfilled_tasks.get('COUNT(t.taskId)') == 0:
+                    # Добавляем этот хэш в таск как не взломанный
+                    hash_id = db_hashtopolis.get_hash_id(hash=hash)
+                    db_tlgbot.add_hash(hashes_id=hash_id, taskwrapper_id=taskwrapper_id, is_cracked=0)
+                    hashes.remove(hash)
     if not hashes:
         return True
     is_salted = False
@@ -136,7 +153,7 @@ def create_task(hash_list_name: str, hash_type_id: int, hashes: list, super_task
     if not response or response.get('response') == 'ERROR':
         return False
     hash_list_id = response.get('hashlistId')
-    if not htapi.run_super_task(hash_list_id=hash_list_id, super_task_id=super_task_id):
+    if not htapi.run_super_task(hash_list_id=hash_list_id, super_task_id=supertask_id):
         return False
     taskwrapper_id = get_run_supertask_id(hash_list_id=hash_list_id)
     if not taskwrapper_id:
@@ -149,7 +166,7 @@ def create_task(hash_list_name: str, hash_type_id: int, hashes: list, super_task
     response = htapi.set_supertask_priority(task_wrapper_id=taskwrapper_id, super_task_priority=max_priority - 1)
     if not response or response.get('response') == 'ERROR':
         return False
-    db_tlgbot.add_task(chat_id=chat_id, hashlist_id=hash_list_id, supertask_id=super_task_id,
+    db_tlgbot.add_task(chat_id=chat_id, hashlist_id=hash_list_id, supertask_id=supertask_id,
                        taskwrapper_id=taskwrapper_id, priority=max_priority - 1)
     db_hashtopolis = DatabaseHashtopolis()
     hashes_id = db_hashtopolis.get_hash_id(hashlist_id=hash_list_id)
@@ -158,10 +175,11 @@ def create_task(hash_list_name: str, hash_type_id: int, hashes: list, super_task
 
 
 if __name__ == "__main__":
-    hashlist = ['004823ba55c79cd95a331b1283d8cbfc',
-                '0096f31cafba65a4719b644fdda7d885',
-                '00f3907872e28ec3cbd7608f3efc728f',
-                '0126e02d0a062ae96bb9f6053d26ef17',
-                '01a88086180795d2cc9a2d9ea348521d', ]
-    check_password_for_hash(hashlist)
+    pass
+    # hashlist = ['004823ba55c79cd95a331b1283d8cbfc',
+    #             '0096f31cafba65a4719b644fdda7d885',
+    #             '00f3907872e28ec3cbd7608f3efc728f',
+    #             '0126e02d0a062ae96bb9f6053d26ef17',
+    #             '01a88086180795d2cc9a2d9ea348521d', ]
+    # check_password_for_hash(hashlist)
     # print(check_hashes_against_the_algorithm(hashes, 0))
