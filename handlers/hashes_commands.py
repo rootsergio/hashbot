@@ -70,11 +70,12 @@ async def get_supertask(message: types.Message, state: FSMContext):
     # Вывод списка супертасков
     supertasks_info = db.get_supertasks_info()
     supertask_id = list()
-    keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+    template_message = ''
     for supertask in supertasks_info:
-        keyboard.add(f"{str(supertask.id)}: Стоимость за хэш: {supertask.price}")
+        template_message = template_message + f" {str(supertask.id)} : {supertask.name}. \nСтоимость за хэш: {str(supertask.price)}\n\n"
         supertask_id.append(supertask.id)
-    await message.answer(f"Выберите шаблон для восстановления пароля", reply_markup=keyboard)
+    print(template_message)
+    await message.answer(f"{template_message}\nВыберите шаблон для восстановления пароля, указав его номер")
     await OrderHashDecryption.waiting_for_supertask.set()
     await state.update_data(list_supertask_id=supertask_id, hashes=verified_hashes.get('correct'))
 
@@ -84,7 +85,7 @@ async def create_task_handler(message: types.Message, state: FSMContext):
     user_data = await state.get_data()
     supertask_id = user_data.get('list_supertask_id')
     try:
-        chosen_supertask = int(message.text.split(":")[0].rstrip())
+        chosen_supertask = int(message.text)
     except ValueError as err:
         chosen_supertask = None
     if chosen_supertask not in supertask_id:
