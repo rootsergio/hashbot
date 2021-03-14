@@ -120,17 +120,17 @@ def create_task(hash_list_name: str, hash_type_id: int, hashes: list, supertask_
         if cracked_hashes:  # Если пароли есть, создаём таск и добавляем ID хэшей в БД
             taskwrapper_id = db_tlgbot.get_taskwrapper_max_id()
             db_tlgbot.add_task(taskwrapper_id=taskwrapper_id, chat_id=chat_id, hashlist_id=None,
-                               supertask_id=supertask_id, priority=0, complited=True)
+                               supertask_id=supertask_id, priority=0)
             for hash in cracked_hashes:
                 hash_id = db_hashtopolis.get_hash_id(hash=hash, is_cracked=1)
                 db_tlgbot.add_hash(hashes_id=hash_id, taskwrapper_id=taskwrapper_id, is_cracked=1)
-                hashes.remove(hash.get('hash'))
+                hashes.remove(hash)
         # Проверяем наличие хэшей, для которых в БД нет пароля
         uncracked_hashes = {hash.get('hash') for hash in result if hash.get('hash') not in cracked_hashes}
         if uncracked_hashes:
             taskwrapper_id = db_tlgbot.get_taskwrapper_max_id()
             db_tlgbot.add_task(taskwrapper_id=taskwrapper_id, chat_id=chat_id, hashlist_id=None,
-                               supertask_id=supertask_id, priority=0, complited=True)
+                               supertask_id=supertask_id, priority=0, completed=True)
             # Если для хэша выполнены все таски, соответствующие супертаску, полученоому от пользователя
             for hash in uncracked_hashes:
                 count_unfulfilled_tasks = db_hashtopolis.get_the_count_of_unfulfilled_tasks(hash=hash, supertask_id=supertask_id)
