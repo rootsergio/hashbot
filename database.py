@@ -1,6 +1,6 @@
 # from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, Integer, String, Boolean, Float, ForeignKey, func
+from sqlalchemy import Column, Integer, String, Boolean, Float, ForeignKey, func, desc
 from config.config import settings
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -46,13 +46,13 @@ class Task(Base):
     priority = Column(Integer)
     is_send = Column(Boolean, default=False)  # Признак того, что данные по задаче отправлены пользователю в чат
 
-
 class Hashe(Base):
     __tablename__ = 'hashes'
     id = Column(Integer, primary_key=True)
     hash_id = Column(Integer, unique=False)  # аналогичен значению поля hashtopolis.Hash(hashId)
     taskwrapper_id = Column(Integer, ForeignKey('tasks.taskwrapper_id'))
     is_cracked = Column(Boolean, default=False)     # признак того, что пароль найден
+    is_send = Column(Boolean, default=False)  # Признак того, что данные по хэшу отправлены пользователю в чат
 
 
 class Supertask(Base):
@@ -130,7 +130,7 @@ class DatabaseTlgBot:
         return max_id + 1000000
 
     def get_active_tasks(self):
-        return self.session.query(Task).filter(Task.completed == False).order_by(Task.taskwrapper_id).all()
+        return self.session.query(Task).filter(Task.is_send == False).order_by(desc(Task.priority)).all()
 
     def allowed_accept_tasks(self, chat_id):
         task_limit_user = self.session.query(User.tasks_limit).filter(User.chat_id == chat_id).scalar()
@@ -139,9 +139,9 @@ class DatabaseTlgBot:
                 return True
         return False
 
-    def add_task(self, taskwrapper_id, chat_id, hashlist_id, supertask_id, priority, complited=False):
+    def add_task(self, taskwrapper_id, chat_id, hashlist_id, supertask_id, priority, completed=False):
         task = Task(taskwrapper_id=taskwrapper_id, chat_id=chat_id, hashlist_id=hashlist_id,
-                    supertask_id=supertask_id, priority=priority, complited=complited)
+                    supertask_id=supertask_id, priority=priority, completed=completed)
         self.session.add(task)
         self.session.commit()
         self.session.refresh(task)
@@ -218,13 +218,6 @@ class DatabaseHashtopolis:
             cursor.execute(sql)
             return cursor.fetchall()
 
-    def check_cracked_hash_for_taskwrapper(self, taskwrapper_id):
-        with self.connection.cursor() as cursor:
-            sql = "SELECT h.hashId, h.plaintext FROM Hash h JOIN TaskWrapper tw ON tw.hashlistId = h.hashlistId " \
-                  "WHERE tw.taskWrapperId = %s AND h.isCracked = 1;"
-            cursor.execute(sql, (taskwrapper_id,))
-            return cursor.fetchall()
-
     def get_the_count_of_unfulfilled_tasks(self, hash: str, supertask_id: int):
         with self.connection.cursor() as cursor:
             sql = f"SELECT COUNT(t.taskId) FROM Hash h " \
@@ -233,13 +226,24 @@ class DatabaseHashtopolis:
                   f"LEFT JOIN Task t ON tw.taskWrapperId = t.taskWrapperId " \
                   f"LEFT JOIN Chunk c ON t.taskId = c.taskId " \
                   f"WHERE h.hash = '{hash}' AND (c.state IS NULL OR c.state <> 4) AND s.supertaskId = {supertask_id};"
-            print(sql)
             cursor.execute(sql)
             return cursor.fetchall()
 
-    def check_cracked_hash_for_hashlist(self, hashlist_id):
+    def get_cracked_hashes(self):
         with self.connection.cursor() as cursor:
-            pass
+            sql = f"SELECT DISTINCT(h.hash), h.plaintext, t.chat_id FROM hashtopolis.Hash h " \
+                  f"JOIN tlgbot.hashes h1 ON h.hashId = h1.hash_id " \
+                  f"JOIN tlgbot.tasks t ON t.taskwrapper_id = h1.taskwrapper_id " \
+                  f"WHERE t.is_send = 0 AND h.isCracked = 1;"
+            cursor.execute(sql)
+            return cursor.fetchall()
+
+    def check_cracked_hash_for_taskwrapper(self, taskwrapper_id):
+        with self.connection.cursor() as cursor:
+            sql = "SELECT h.hashId, h.plaintext FROM Hash h JOIN TaskWrapper tw ON tw.hashlistId = h.hashlistId " \
+                  "WHERE tw.taskWrapperId = %s AND h.isCracked = 1;"
+            cursor.execute(sql, (taskwrapper_id,))
+            return cursor.fetchall()
 
     def check_hashes_in_available(self, hashlist: list) -> list:
         """
@@ -256,6 +260,9 @@ class DatabaseHashtopolis:
 
 if __name__ == '__main__':
     pass
+    db = DatabaseTlgBot()
+    for i in db.get_supertasks_info():
+        print(type(i))
     # db_hashtopolis = DatabaseHashtopolis()
     # hashlist = ['004823ba55c79cd95a331b1283d8cbfc',
     #             '0096f31cafba65a4719b644fdda7d885',
