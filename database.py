@@ -260,9 +260,9 @@ class DatabaseHashtopolis:
 
 if __name__ == '__main__':
     pass
-    db = DatabaseTlgBot()
-    for i in db.get_supertasks_info():
-        print(type(i))
+    db = DatabaseHashtopolis()
+    for i in db.get_cracked_hashes():
+        print(i)
     # db_hashtopolis = DatabaseHashtopolis()
     # hashlist = ['004823ba55c79cd95a331b1283d8cbfc',
     #             '0096f31cafba65a4719b644fdda7d885',
